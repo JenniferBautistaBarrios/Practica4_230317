@@ -1,8 +1,10 @@
 import express from 'express';
 import session from 'express-session';
 import requestIp from 'request-ip'
+import macaddress from 'macaddress'
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
+import { resolve } from 'path';
 
 const app = express();
 
@@ -35,16 +37,27 @@ const getServerMac = () =>{
         }
     }
 }
+const getClientMac = () => {
+    return new Promise((resolve, reject) => {
+        macaddress.one((err, mac) => {
+            if (err) {
+                reject('Error al obtener la dirección MAC:', err);
+            }
+                resolve(mac);
+        });
+    })
+   
+}
 
-app.get('/login/:nombre/:email', (req,res)=> {
+app.get('/login/:nombre/:email', async(req,res)=> {
     if(!req.session.start){
-        
         req.session.start = new Date();
         req.session.lastAccess = new Date();
         req.session.uuid = uuidv4();
         req.session.serverIp = getServerIp();
         req.session.serverMac = getServerMac();
         req.session.clientIp = req.socket.remoteAddress;
+        req.session.clientMac = await getClientMac();
         req.session.name = req.params.nombre;
         req.session.email = req.params.email;
 
@@ -94,6 +107,7 @@ app.get('/listCurrentSessions', (req,res) => {
             ipServidor: req.session.serverIp,
             macServidor: req.session.serverMac,
             ipCliente: req.session.clientIp,
+            macCliente: req.session.clientMac,
             inicio: inicio.toISOString(),
             ultimoAcceso: ultimoAccesso.toISOString(),
             sessionTime: `${horas} horas, ${minutos} minutos, ${segundos} segundos`
